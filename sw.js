@@ -1,5 +1,5 @@
 const CACHE = 'odograph-v1';
-const ASSETS = ['./', './index.html', './manifest.json', './icon.svg'];
+const ASSETS = ['./', './index.html', './manifest.json', './icon.svg', './background.jpg'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
