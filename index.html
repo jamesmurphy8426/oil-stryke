@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Odograph — mileage &amp; oil change tracker</title>
+<meta name="theme-color" content="#1c1e22">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #1c1e22;
+    --surface: #25282d;
+    --surface-raised: #2c2f35;
+    --line: #383c43;
+    --text: #edeae4;
+    --text-dim: #9a9da3;
+    --amber: #e8a33d;
+    --amber-dim: #7a5a26;
+    --teal: #4fa88f;
+    --teal-dim: #2c5f52;
+    --red: #d9634f;
+    --red-dim: #6e3229;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px; margin:0 auto; padding:1.5rem 1.25rem 4rem;}
+  header{display:flex; align-items:baseline; justify-content:space-between; margin-bottom:1.75rem;}
+  header h1{font-family:var(--mono); font-size:20px; font-weight:700; margin:0; letter-spacing:0.5px;}
+  header .tag{font-size:12px; color:var(--text-dim);}
+
+  .cluster{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.25rem;
+    margin-bottom:1.25rem;
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:0.5rem;
+  }
+  .gauge{text-align:center; padding:0.25rem 0;}
+  .gauge + .gauge{border-left:1px solid var(--line);}
+  .gauge .label{font-size:11px; text-transform:uppercase; letter-spacing:1px; color:var(--text-dim); margin-bottom:6px;}
+  .gauge .value{font-family:var(--mono); font-size:26px; font-weight:700;}
+  .gauge .unit{font-size:12px; color:var(--text-dim); margin-left:2px;}
+
+  .status{
+    display:none;
+    border-radius:8px;
+    padding:0.85rem 1rem;
+    font-size:14px;
+    margin-bottom:1.25rem;
+    border:1px solid transparent;
+  }
+  .status.warn{display:block; background:rgba(232,163,61,0.12); border-color:var(--amber-dim); color:var(--amber);}
+  .status.danger{display:block; background:rgba(217,99,79,0.12); border-color:var(--red-dim); color:var(--red);}
+  .status.ok{display:block; background:rgba(79,168,143,0.1); border-color:var(--teal-dim); color:var(--teal);}
+
+  section.card{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:1.1rem 1.25rem;
+    margin-bottom:1.25rem;
+  }
+  section.card h2{font-size:14px; font-weight:600; margin:0 0 0.9rem; display:flex; align-items:center; gap:8px;}
+  .row{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;}
+  .field{flex:1; min-width:140px;}
+  .field label{display:block; font-size:12px; color:var(--text-dim); margin-bottom:4px;}
+  input[type=number]{
+    width:100%;
+    background:var(--surface-raised);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:8px 10px;
+    font-family:var(--mono);
+    font-size:15px;
+  }
+  input[type=number]:focus{outline:none; border-color:var(--amber);}
+  button{
+    background:var(--surface-raised);
+    border:1px solid var(--line);
+    color:var(--text);
+    border-radius:6px;
+    padding:9px 14px;
+    font-family:var(--sans);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  button:hover{border-color:var(--amber);}
+  button:active{transform:scale(0.98);}
+  button.primary{background:var(--amber); color:#211705; border-color:var(--amber); font-weight:600;}
+  button.full{width:100%;}
+  .err{color:var(--red); font-size:12px; margin:8px 0 0; display:none;}
+
+  .log-row{display:flex; justify-content:space-between; padding:7px 0; border-bottom:1px solid var(--line); font-size:13px;}
+  .log-row:last-child{border-bottom:none;}
+  .log-row .miles{font-family:var(--mono); color:var(--text);}
+  .log-row .date{color:var(--text-dim);}
+  .empty{color:var(--text-dim); font-size:13px;}
+
+  details{border-top:1px solid var(--line); margin-top:0.4rem; padding-top:0.75rem;}
+  details summary{cursor:pointer; font-size:13px; color:var(--text-dim); font-weight:500;}
+  details .body{font-size:13px; color:var(--text-dim); margin-top:0.75rem;}
+  details ol{padding-left:1.1rem; margin:0.5rem 0;}
+  details li{margin-bottom:6px;}
+  code{background:var(--surface-raised); padding:1px 5px; border-radius:4px; font-family:var(--mono); font-size:12px;}
+
+  .install-banner{
+    display:none;
+    background:var(--surface-raised);
+    border:1px solid var(--amber-dim);
+    border-radius:8px;
+    padding:0.75rem 1rem;
+    margin-bottom:1.25rem;
+    font-size:13px;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>ODOGRAPH</h1>
+    <span class="tag">mileage &amp; oil tracker</span>
+  </header>
+
+  <div class="install-banner" id="installBanner">
+    <span>Install this on your home screen for one-tap access.</span>
+    <button id="installBtn">Install</button>
+  </div>
+
+  <div class="cluster">
+    <div class="gauge">
+      <div class="label">Odometer</div>
+      <div class="value" id="curMiles">—</div>
+    </div>
+    <div class="gauge">
+      <div class="label">Since change</div>
+      <div class="value" id="sinceMiles">—</div>
+    </div>
+    <div class="gauge">
+      <div class="label">Until due</div>
+      <div class="value" id="untilDue">—</div>
+    </div>
+  </div>
+
+  <div class="status" id="statusBox"></div>
+
+  <section class="card">
+    <h2>Log a mileage reading</h2>
+    <div class="row">
+      <div class="field">
+        <label for="odoInput">Odometer reading</label>
+        <input type="number" id="odoInput" placeholder="e.g. 45210" inputmode="numeric">
+      </div>
+      <button class="primary" id="logBtn">Add reading</button>
+    </div>
+    <p class="err" id="odoErr"></p>
+  </section>
+
+  <section class="card">
+    <h2>Oil change settings</h2>
+    <div class="row" style="margin-bottom:10px;">
+      <div class="field">
+        <label for="intervalInput">Change interval (miles)</label>
+        <input type="number" id="intervalInput" value="5000">
+      </div>
+      <div class="field">
+        <label for="lastChangeInput">Mileage at last change</label>
+        <input type="number" id="lastChangeInput" placeholder="e.g. 40000">
+      </div>
+      <button id="saveSettingsBtn">Save</button>
+    </div>
+    <button class="full" id="markChangedBtn">Just changed the oil now</button>
+  </section>
+
+  <section class="card">
+    <h2>Recent readings</h2>
+    <div id="logList" class="empty">No readings logged yet.</div>
+  </section>
+
+  <section class="card">
+    <h2>In-car reminders</h2>
+    <p style="font-size:13px; color:var(--text-dim); margin:0 0 0.5rem;">
+      Browser notifications only fire while this app is open in a tab, so they can't hook directly into
+      CarPlay or Android Auto connecting — that requires a native app. Until the native app ships, you can
+      get a close approximation with your phone's own automation tools.
+    </p>
+    <details>
+      <summary>Set it up on iPhone (Shortcuts)</summary>
+      <div class="body">
+        <ol>
+          <li>Open the <strong>Shortcuts</strong> app → <strong>Automation</strong> tab → <strong>+</strong></li>
+          <li>Choose <strong>CarPlay</strong> as the trigger, set it to <strong>Is Connected</strong></li>
+          <li>Add an action: <strong>Open URL</strong>, pointing at wherever this app is hosted</li>
+          <li>Turn off "Ask Before Running" so it opens automatically</li>
+        </ol>
+        This opens Odograph the moment CarPlay connects, so the mileage field is one tap away.
+      </div>
+    </details>
+    <details>
+      <summary>Set it up on Android (Tasker)</summary>
+      <div class="body">
+        <ol>
+          <li>Install <strong>Tasker</strong> from the Play Store</li>
+          <li>Create a new profile → <strong>State</strong> → <strong>Net</strong> → <strong>Display Auto Interface On</strong> (or <strong>BT Connected</strong> for your car's Bluetooth name)</li>
+          <li>Link it to a task with a <strong>Browse URL</strong> action pointing at wherever this app is hosted</li>
+        </ol>
+        Some Android Auto head units also support Android's <code>car.CAR_CONNECTED</code> broadcast, which Tasker can listen for directly.
+      </div>
+    </details>
+  </section>
+
+</div>
+
+<script>
+(function(){
+  const KEY = 'odograph-state-v1';
+  let state = { readings: [], interval: 5000, lastChangeMiles: null };
+
+  function load(){
+    try {
+      const raw = localStorage.getItem(KEY);
+      if (raw) state = JSON.parse(raw);
+    } catch(e){}
+  }
+  function save(){
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch(e){}
+  }
+
+  function currentMiles(){
+    if (!state.readings.length) return null;
+    return Math.max(...state.readings.map(r => r.miles));
+  }
+
+  let notifiedThisSession = false;
+  function maybeNotify(msg){
+    if (notifiedThisSession) return;
+    if ('Notification' in window && Notification.permission === 'granted'){
+      try { new Notification('Oil change reminder', { body: msg }); notifiedThisSession = true; } catch(e){}
+    }
+  }
+
+  function fmt(n){ return n.toLocaleString(); }
+
+  function render(){
+    const cur = currentMiles();
+    document.getElementById('curMiles').textContent = cur !== null ? fmt(cur) : '—';
+
+    const statusBox = document.getElementById('statusBox');
+    const last = state.lastChangeMiles;
+
+    if (cur === null || last === null || last === undefined){
+      document.getElementById('sinceMiles').textContent = '—';
+      document.getElementById('untilDue').textContent = '—';
+      statusBox.className = 'status';
+    } else {
+      const since = cur - last;
+      const until = state.interval - since;
+      document.getElementById('sinceMiles').textContent = fmt(since);
+      document.getElementById('untilDue').textContent = fmt(until);
+
+      if (until <= 0){
+        statusBox.className = 'status danger';
+        statusBox.textContent = 'Oil change overdue by ' + fmt(Math.abs(until)) + ' miles.';
+        maybeNotify(statusBox.textContent);
+      } else if (until <= 500){
+        statusBox.className = 'status warn';
+        statusBox.textContent = 'Oil change due soon — ' + fmt(until) + ' miles left.';
+        maybeNotify(statusBox.textContent);
+      } else {
+        statusBox.className = 'status ok';
+        statusBox.textContent = fmt(until) + ' miles until your next oil change.';
+      }
+    }
+
+    document.getElementById('intervalInput').value = state.interval;
+    if (last !== null && last !== undefined) document.getElementById('lastChangeInput').value = last;
+
+    const listEl = document.getElementById('logList');
+    if (!state.readings.length){
+      listEl.className = 'empty';
+      listEl.textContent = 'No readings logged yet.';
+    } else {
+      listEl.className = '';
+      const sorted = [...state.readings].sort((a,b) => b.date - a.date).slice(0,8);
+      listEl.innerHTML = sorted.map(r => {
+        const d = new Date(r.date);
+        return '<div class="log-row"><span class="date">' + d.toLocaleDateString() + '</span><span class="miles">' + fmt(r.miles) + ' mi</span></div>';
+      }).join('');
+    }
+  }
+
+  document.getElementById('logBtn').addEventListener('click', () => {
+    const val = document.getElementById('odoInput').value;
+    const errEl = document.getElementById('odoErr');
+    const num = parseInt(val, 10);
+    if (!val || isNaN(num) || num < 0){
+      errEl.textContent = 'Enter a valid odometer reading.';
+      errEl.style.display = 'block';
+      return;
+    }
+    errEl.style.display = 'none';
+    state.readings.push({ miles: num, date: Date.now() });
+    document.getElementById('odoInput').value = '';
+    save();
+    render();
+  });
+
+  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+    const iv = parseInt(document.getElementById('intervalInput').value, 10);
+    const lc = document.getElementById('lastChangeInput').value;
+    if (!isNaN(iv) && iv > 0) state.interval = iv;
+    if (lc !== ''){
+      const lcNum = parseInt(lc, 10);
+      if (!isNaN(lcNum) && lcNum >= 0) state.lastChangeMiles = lcNum;
+    }
+    notifiedThisSession = false;
+    save();
+    render();
+  });
+
+  document.getElementById('markChangedBtn').addEventListener('click', () => {
+    const cur = currentMiles();
+    const errEl = document.getElementById('odoErr');
+    if (cur === null){
+      errEl.textContent = 'Log a mileage reading first.';
+      errEl.style.display = 'block';
+      return;
+    }
+    errEl.style.display = 'none';
+    state.lastChangeMiles = cur;
+    notifiedThisSession = false;
+    save();
+    render();
+  });
+
+  if ('Notification' in window && Notification.permission === 'default'){
+    Notification.requestPermission();
+  }
+
+  // PWA install prompt
+  let deferredPrompt;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    document.getElementById('installBanner').style.display = 'flex';
+  });
+  document.getElementById('installBtn').addEventListener('click', async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    document.getElementById('installBanner').style.display = 'none';
+  });
+
+  if ('serviceWorker' in navigator){
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
+  load();
+  render();
+})();
+</script>
+</body>
+</html>
