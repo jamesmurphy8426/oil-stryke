@@ -1,6 +1,6 @@
 {
-  "name": "Odograph — mileage & oil tracker",
-  "short_name": "Odograph",
+  "name": "Mobile Oil Change Express — mileage & oil tracker",
+  "short_name": "Oil Change Express",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#1c1e22",
